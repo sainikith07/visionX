@@ -1,7 +1,6 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize AI client using the API key from environment variables
 const getAIClient = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
@@ -14,7 +13,7 @@ export const enhanceDocument = async (base64Image: string): Promise<string> => {
       contents: {
         parts: [
           { inlineData: { data: base64Image.split(',')[1], mimeType: 'image/png' } },
-          { text: "Enhance this scanned document. Remove shadows, human fingers, background noise, and improve contrast to make it perfectly readable like a professional scan." }
+          { text: "Perform professional document restoration. Eliminate physical obstructions (fingers, glares, shadows), perform background whitening while preserving text legibility, and optimize contrast for OCR-ready quality. Output the restored document image only." }
         ]
       }
     });
@@ -24,9 +23,9 @@ export const enhanceDocument = async (base64Image: string): Promise<string> => {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-    throw new Error("No image part returned from Gemini");
+    throw new Error("Invalid Model Response");
   } catch (error) {
-    console.error("Gemini Document Enhancement Error:", error);
+    console.error("Doc Enhancement Error:", error);
     throw error;
   }
 };
@@ -39,7 +38,7 @@ export const stageRoom = async (base64Image: string, instructions: string = ""):
       contents: {
         parts: [
           { inlineData: { data: base64Image.split(',')[1], mimeType: 'image/png' } },
-          { text: `The provided image has red markings. These markings indicate SEVERAL specific objects that must be removed. Completely erase EVERY object covered by red and inpaint the area with the matching background (floor, wall, etc.). Ensure all red-marked regions are seamlessly filled. ${instructions}` }
+          { text: `System Command: Architectural Inpainting. The red strokes designate objects for deletion. You must intelligently reconstruct the background (floors, walls, shadows) to ensure structural continuity. ${instructions}` }
         ]
       }
     });
@@ -49,9 +48,9 @@ export const stageRoom = async (base64Image: string, instructions: string = ""):
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
-    throw new Error("No image part returned from Gemini");
+    throw new Error("Staging Failed");
   } catch (error) {
-    console.error("Gemini Staging Error:", error);
+    console.error("Staging Error:", error);
     throw error;
   }
 };

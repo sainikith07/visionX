@@ -13,7 +13,6 @@ const App: React.FC = () => {
   const [currentPath, setCurrentPath] = useState('/');
   const [user, setUser] = useState<User | null>(null);
 
-  // Persistence logic
   useEffect(() => {
     const savedUser = localStorage.getItem('current_user');
     if (savedUser) setUser(JSON.parse(savedUser));
@@ -45,9 +44,7 @@ const App: React.FC = () => {
     const upgradedUser = { ...user, tier: UserTier.PREMIUM };
     setUser(upgradedUser);
     localStorage.setItem('current_user', JSON.stringify(upgradedUser));
-    // Update permanent record
-    localStorage.setItem(`user_${user.email}`, JSON.stringify({ ...upgradedUser, password: '***' }));
-    alert("Welcome to VISION-X PREMIUM!");
+    alert("VISION-X PRO ACTIVATED");
   };
 
   const renderPage = () => {
@@ -78,15 +75,19 @@ const App: React.FC = () => {
   };
 
   return (
-    <Layout 
-      activePath={currentPath} 
-      onNavigate={navigate}
-      user={user}
-      onLogout={logout}
-      onUpgrade={upgradeToPremium}
-    >
-      {renderPage()}
-    </Layout>
+    <div className="bg-[#0b0f1a] selection:bg-blue-500/30 selection:text-blue-200">
+      <Layout 
+        activePath={currentPath} 
+        onNavigate={navigate}
+        user={user}
+        onLogout={logout}
+        onUpgrade={upgradeToPremium}
+      >
+        <div className="animate-in fade-in duration-700">
+          {renderPage()}
+        </div>
+      </Layout>
+    </div>
   );
 };
 

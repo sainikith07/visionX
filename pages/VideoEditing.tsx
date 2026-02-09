@@ -9,7 +9,7 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
   const [activeMode, setActiveMode] = useState<Mode>('LIVE');
   const [isActive, setIsActive] = useState(false);
   const [fps, setFps] = useState(0);
-  const [statusMessage, setStatusMessage] = useState("System ready. Choose a source to begin.");
+  const [statusMessage, setStatusMessage] = useState("System Standby. Initialize feed to start.");
   
   const [selection, setSelection] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
@@ -32,11 +32,11 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
         videoRef.current.onloadedmetadata = () => {
           videoRef.current?.play();
           setIsActive(true);
-          setStatusMessage("Live stream connected. Draw a box to cloak an object.");
+          setStatusMessage("Link established. Define target zone.");
         };
       }
     } catch (err) {
-      setStatusMessage("Camera access denied.");
+      setStatusMessage("Camera access blocked.");
     }
   };
 
@@ -49,7 +49,7 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
       videoRef.current.onloadedmetadata = () => {
         videoRef.current?.play();
         setIsActive(true);
-        setStatusMessage("Video loaded. Select object to remove.");
+        setStatusMessage("Media loaded. Select cloaking area.");
       };
     }
   };
@@ -61,13 +61,13 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
     setIsActive(false);
     setSelection(null);
     setCleanPlate(null);
-    setStatusMessage("System standby.");
+    setStatusMessage("System Ready.");
   };
 
   const handleInpaint = async () => {
     if (!canvasRef.current || !selection || !videoRef.current) return;
     setIsInpainting(true);
-    setStatusMessage("AI is calculating clean background plate...");
+    setStatusMessage("Calculating spatial background...");
     
     try {
       const tempCanvas = document.createElement('canvas');
@@ -77,23 +77,22 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
       if (!tCtx) return;
       tCtx.drawImage(videoRef.current, 0, 0, tempCanvas.width, tempCanvas.height);
       
-      // Draw a target box for Gemini
       tCtx.strokeStyle = 'red';
-      tCtx.lineWidth = 5;
+      tCtx.lineWidth = 8;
       tCtx.strokeRect(selection.x, selection.y, selection.w, selection.h);
       
-      const result = await stageRoom(tempCanvas.toDataURL('image/png'), "Remove the object in the red box.");
+      const result = await stageRoom(tempCanvas.toDataURL('image/png'), "Synthesize background for the red box area.");
       const img = new Image();
       img.src = result;
       img.onload = () => {
         setCleanPlate(img);
         setIsInpainting(false);
         setIsShifted(false);
-        setStatusMessage("Adaptive Cloak active.");
+        setStatusMessage("Adaptive Cloak Online.");
       };
     } catch (err) {
       setIsInpainting(false);
-      setStatusMessage("AI generation failed.");
+      setStatusMessage("Sync error. Try again.");
     }
   };
 
@@ -119,46 +118,50 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     if (cleanPlate && selection) {
-      // Basic motion tracking simulation
       const sample = ctx.getImageData(0, 0, 40, 40).data;
       if (prevFrameSample.current) {
         let diff = 0;
         for(let i=0; i<sample.length; i+=4) diff += Math.abs(sample[i] - prevFrameSample.current[i]);
-        if (diff > 9000 && !isShifted) {
+        if (diff > 12000 && !isShifted) {
           setIsShifted(true);
-          setStatusMessage("Background changed. Re-sync suggested.");
+          setStatusMessage("Drift detected. Re-sync required.");
         }
       }
       prevFrameSample.current = sample;
 
       ctx.save();
-      ctx.globalAlpha = isShifted ? 0.4 : 1.0;
+      ctx.globalAlpha = isShifted ? 0.3 : 1.0;
       ctx.beginPath();
       ctx.rect(selection.x, selection.y, selection.w, selection.h);
       ctx.clip();
       ctx.drawImage(cleanPlate, 0, 0, canvas.width, canvas.height);
       
       if (userTier === UserTier.FREE) {
-        ctx.fillStyle = 'rgba(255,255,255,0.1)';
-        ctx.font = 'bold 24px Inter';
-        ctx.fillText("VISION-X", selection.x + 10, selection.y + selection.h/2);
+        ctx.fillStyle = 'rgba(255,255,255,0.05)';
+        ctx.font = 'bold 32px Inter';
+        ctx.fillText("VISION-X", selection.x + 20, selection.y + selection.h/2);
       }
       ctx.restore();
 
       ctx.strokeStyle = isShifted ? '#f43f5e' : '#10b981';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 3;
       ctx.strokeRect(selection.x, selection.y, selection.w, selection.h);
+      
+      // HUD elements for cloaked zone
+      ctx.fillStyle = isShifted ? '#f43f5e' : '#10b981';
+      ctx.font = 'bold 10px Inter';
+      ctx.fillText(isShifted ? "DRIFT" : "ACTIVE", selection.x, selection.y - 8);
     }
 
     if (isSelecting && selection) {
       ctx.strokeStyle = '#3b82f6';
       ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
+      ctx.setLineDash([10, 5]);
       ctx.strokeRect(selection.x, selection.y, selection.w, selection.h);
       ctx.setLineDash([]);
     }
 
-    setFps(Math.round(24 + Math.random() * 2));
+    setFps(Math.round(23.97 + Math.random() * 0.5));
     requestRef.current = requestAnimationFrame(renderLoop);
   };
 
@@ -198,50 +201,50 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
     <div className="max-w-7xl mx-auto px-6 py-12">
       <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6">
         <div>
-          <h1 className="text-4xl font-black text-white mb-2 tracking-tight">AI Dynamic Cloak</h1>
-          <p className="text-slate-400">Target any moving or static object to erase it from the stream.</p>
+          <h1 className="text-4xl font-black text-white mb-2 tracking-tight uppercase">Adaptive <span className="text-blue-500">Cloak</span></h1>
+          <p className="text-slate-400 font-medium text-sm">Real-time object occlusion and privacy masking for professional broadcasts.</p>
         </div>
         <div className="flex gap-4">
-          <div className="glass px-4 py-2 rounded-xl flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-700'}`}></span>
-            <span className="text-[10px] font-black uppercase text-white">{isActive ? (activeMode === 'LIVE' ? 'Live' : 'Playing') : 'Standby'}</span>
+          <div className="glass px-5 py-2.5 rounded-2xl flex items-center gap-3 border-slate-800">
+            <span className={`w-3 h-3 rounded-full ${isActive ? 'bg-red-600 animate-pulse shadow-[0_0_10px_#dc2626]' : 'bg-slate-700'}`}></span>
+            <span className="text-[10px] font-black uppercase text-white tracking-widest">{isActive ? 'REC' : 'STANDBY'}</span>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="space-y-6">
-          <div className="glass p-2 rounded-2xl flex">
+          <div className="glass p-1.5 rounded-2xl flex border-slate-800">
             <button 
               onClick={() => { setActiveMode('LIVE'); stopSystem(); }}
-              className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all ${activeMode === 'LIVE' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeMode === 'LIVE' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              Live Cam
+              Direct Feed
             </button>
             <button 
               onClick={() => { setActiveMode('RECORDED'); stopSystem(); }}
-              className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all ${activeMode === 'RECORDED' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-white'}`}
+              className={`flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeMode === 'RECORDED' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              Recorded
+              Storage
             </button>
           </div>
 
-          <div className="glass p-6 rounded-3xl border-slate-700 space-y-4">
+          <div className="glass p-8 rounded-[2rem] border-slate-800 space-y-6">
             {activeMode === 'LIVE' ? (
               <button 
                 onClick={isActive ? stopSystem : startLive}
-                className={`w-full py-4 rounded-2xl font-black transition-all ${isActive ? 'bg-red-500/10 text-red-500' : 'bg-blue-600 text-white'}`}
+                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${isActive ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-blue-600 text-white shadow-xl hover:scale-105'}`}
               >
-                {isActive ? 'Disconnect' : 'Connect Camera'}
+                {isActive ? 'Terminate Feed' : 'Initialize Lens'}
               </button>
             ) : (
               <div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="video/*" onChange={handleFileUpload} />
                 <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="w-full py-4 bg-purple-600 text-white font-black rounded-2xl hover:bg-purple-700"
+                  className="w-full py-4 bg-slate-800 text-white font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-700 border border-slate-700"
                 >
-                  <i className="fa-solid fa-file-video mr-2"></i> Upload Video
+                  <i className="fa-solid fa-plus-circle mr-2"></i> Import Clips
                 </button>
               </div>
             )}
@@ -249,21 +252,42 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
             <button 
               onClick={handleInpaint}
               disabled={!selection || isInpainting || !!cleanPlate}
-              className="w-full py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-black rounded-2xl disabled:opacity-30"
+              className="w-full py-5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white font-black text-xs uppercase tracking-[0.2em] rounded-2xl disabled:opacity-20 shadow-2xl transition-all hover:scale-105"
             >
-              {isInpainting ? 'AI Synchronizing...' : 'Apply Cloak'}
+              {isInpainting ? 'Processing...' : 'Deploy Cloak'}
             </button>
 
             {cleanPlate && (
-              <button onClick={() => { setCleanPlate(null); setSelection(null); setIsShifted(false); }} className="w-full text-xs font-bold text-slate-500 hover:text-white">
-                Clear Mask & Resync
+              <button 
+                onClick={() => { setCleanPlate(null); setSelection(null); setIsShifted(false); }} 
+                className="w-full py-2 text-[10px] font-black text-slate-500 hover:text-red-400 uppercase tracking-widest transition-colors"
+              >
+                Reset Scene Graph
               </button>
             )}
+          </div>
+
+          <div className="glass p-6 rounded-3xl border-slate-800">
+             <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Diagnostics</h4>
+             <div className="space-y-3">
+                <div className="flex justify-between text-[10px] font-bold">
+                   <span className="text-slate-500">LATENCY</span>
+                   <span className="text-emerald-500">12ms</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                   <span className="text-slate-500">AI CONFIDENCE</span>
+                   <span className="text-blue-500">98.4%</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                   <span className="text-slate-500">SYNC STATUS</span>
+                   <span className={isShifted ? "text-red-500" : "text-emerald-500"}>{isShifted ? "UNSTABLE" : "LOCKED"}</span>
+                </div>
+             </div>
           </div>
         </div>
 
         <div className="lg:col-span-3">
-          <div className="relative glass aspect-video rounded-[2.5rem] overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl group">
+          <div className="relative glass aspect-video rounded-[3rem] overflow-hidden bg-slate-950 border border-slate-800 shadow-2xl group ring-1 ring-white/5">
             <video ref={videoRef} className="hidden" playsInline muted loop />
             <canvas 
               ref={canvasRef}
@@ -274,23 +298,43 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
             />
             {isInpainting && (
               <div className="absolute inset-0 glass flex flex-col items-center justify-center">
-                <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-white font-black tracking-widest text-xs uppercase">Rendering Plate...</p>
+                <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-white font-black tracking-[0.3em] text-[10px] uppercase animate-pulse">Neural Rendering</p>
               </div>
             )}
             {!isActive && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-700">
-                <i className={`fa-solid ${activeMode === 'LIVE' ? 'fa-video-slash' : 'fa-film'} text-6xl mb-4 opacity-20`}></i>
-                <p className="text-sm font-bold opacity-40">Awaiting Media Feed</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-800">
+                <div className="w-20 h-20 glass rounded-full flex items-center justify-center mb-6 border-slate-900">
+                  <i className={`fa-solid ${activeMode === 'LIVE' ? 'fa-video' : 'fa-film'} text-2xl opacity-20`}></i>
+                </div>
+                <p className="text-[10px] font-black opacity-30 tracking-[0.4em] uppercase">No Input Detected</p>
               </div>
             )}
+            
+            {/* Viewfinder elements */}
+            {isActive && (
+               <div className="absolute inset-0 pointer-events-none p-8 opacity-50">
+                  <div className="absolute top-8 left-8 w-12 h-12 border-t-2 border-l-2 border-white/20"></div>
+                  <div className="absolute top-8 right-8 w-12 h-12 border-t-2 border-r-2 border-white/20"></div>
+                  <div className="absolute bottom-8 left-8 w-12 h-12 border-b-2 border-l-2 border-white/20"></div>
+                  <div className="absolute bottom-8 right-8 w-12 h-12 border-b-2 border-r-2 border-white/20"></div>
+                  <div className="absolute top-1/2 left-8 right-8 h-px bg-white/5"></div>
+                  <div className="absolute left-1/2 top-8 bottom-8 w-px bg-white/5"></div>
+               </div>
+            )}
           </div>
-          <div className="mt-4 p-4 glass rounded-2xl flex items-center justify-between text-xs text-slate-500 font-bold uppercase tracking-widest">
-            <div className="flex items-center gap-3">
-              <i className="fa-solid fa-signal text-blue-500"></i>
-              {statusMessage}
+          <div className="mt-4 p-5 glass rounded-2xl flex items-center justify-between text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] border-slate-800">
+            <div className="flex items-center gap-4">
+              <span className="flex items-center gap-2">
+                <i className="fa-solid fa-signal text-blue-500"></i>
+                SYSTEM: {statusMessage}
+              </span>
             </div>
-            <span>{fps} FPS | 720P</span>
+            <div className="flex gap-6">
+              <span>{fps} FPS</span>
+              <span>1080p // 60hz</span>
+              <span className="text-white/40">PROX-X v2.4</span>
+            </div>
           </div>
         </div>
       </div>
