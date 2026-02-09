@@ -3,7 +3,6 @@ import { GoogleGenAI } from "@google/genai";
 
 // Initialize AI client using the API key from environment variables
 const getAIClient = () => {
-  // Use the process.env.API_KEY string directly as per guidelines
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
@@ -40,7 +39,7 @@ export const stageRoom = async (base64Image: string, instructions: string = ""):
       contents: {
         parts: [
           { inlineData: { data: base64Image.split(',')[1], mimeType: 'image/png' } },
-          { text: `Act as a professional interior stager. Remove all existing furniture, clutter, and distracting objects from this room to visualize a clean, empty, or minimally staged professional space. ${instructions}` }
+          { text: `The provided image has red markings. These markings indicate SEVERAL specific objects that must be removed. Completely erase EVERY object covered by red and inpaint the area with the matching background (floor, wall, etc.). Ensure all red-marked regions are seamlessly filled. ${instructions}` }
         ]
       }
     });
