@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { NAV_ITEMS, APP_NAME, DEVELOPER_INFO } from '../constants';
 import LegalModal from './LegalModal';
+import { UserTier } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -52,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activePath, onNavigate, user,
           <div className="flex items-center gap-5">
             {user ? (
               <div className="flex items-center gap-5">
-                {user.tier === 'FREE' && (
+                {user.tier !== UserTier.PREMIUM && (
                   <button 
                     onClick={onUpgrade}
                     className="hidden sm:block px-5 py-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 text-amber-500 text-[9px] font-black rounded-full hover:from-amber-500 hover:to-orange-500 hover:text-black transition-all uppercase tracking-widest shadow-xl shadow-amber-900/5"
@@ -68,8 +69,13 @@ const Layout: React.FC<LayoutProps> = ({ children, activePath, onNavigate, user,
                     <p className="text-[10px] font-black text-white leading-none mb-0.5">{user.name.split(' ')[0]}</p>
                     <p className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">{user.tier}</p>
                   </div>
-                  <button onClick={onLogout} className="ml-2 text-xs font-bold text-slate-500 hover:text-red-400 transition-colors">
-                    <i className="fa-solid fa-right-from-bracket"></i>
+                  <button 
+                    onClick={onLogout} 
+                    className="ml-4 pl-4 border-l border-slate-700/50 text-[10px] font-black text-slate-500 hover:text-red-500 transition-all uppercase tracking-widest flex items-center gap-2 group/logout"
+                    title="Sign Out"
+                  >
+                    <span className="hidden xl:block">Sign Out</span>
+                    <i className="fa-solid fa-right-from-bracket group-hover/logout:translate-x-1 transition-transform"></i>
                   </button>
                 </div>
               </div>
@@ -106,9 +112,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activePath, onNavigate, user,
                 {item.name}
               </button>
             ))}
-            {user && user.tier === 'FREE' && (
+            {user && user.tier !== UserTier.PREMIUM && (
                <button onClick={onUpgrade} className="mt-4 w-full py-4 bg-amber-500 text-black font-black rounded-xl text-xs uppercase tracking-widest">
                   Upgrade to Pro
+               </button>
+            )}
+            {user && (
+               <button 
+                 onClick={() => { onLogout?.(); setIsMobileMenuOpen(false); }} 
+                 className="mt-2 w-full py-4 bg-red-500/10 border border-red-500/20 text-red-500 font-black rounded-xl text-xs uppercase tracking-widest flex items-center justify-center gap-3"
+               >
+                  <i className="fa-solid fa-right-from-bracket"></i>
+                  Sign Out
                </button>
             )}
           </div>
@@ -166,10 +181,6 @@ const Layout: React.FC<LayoutProps> = ({ children, activePath, onNavigate, user,
               <p className="flex items-start gap-4">
                 <i className="fa-solid fa-university text-blue-500 mt-1"></i>
                 <span>{DEVELOPER_INFO.college}</span>
-              </p>
-              <p className="flex items-start gap-4">
-                <i className="fa-solid fa-terminal text-blue-500 mt-1"></i>
-                <span>Hybrid VLM Architecture</span>
               </p>
               <p className="flex items-start gap-4">
                 <i className="fa-solid fa-location-dot text-blue-500 mt-1"></i>

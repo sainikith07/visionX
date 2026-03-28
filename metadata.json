@@ -1,6 +1,6 @@
 {
-  "name": "VISION-X AI Suite",
-  "description": "A professional AI-powered SaaS platform for document enhancement, virtual home staging, and real-time video background editing using advanced computer vision and generative models.",
+  "name": "VISION-X | Professional Visual Intelligence",
+  "description": "Enhance your images with just a few clicks. A professional AI-powered SaaS platform for document enhancement, virtual home staging, and real-time video background editing.",
   "requestFramePermissions": [
     "camera",
     "microphone"

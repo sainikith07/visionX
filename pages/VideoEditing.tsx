@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { stageRoom } from '../services/geminiService';
 import { UserTier } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 type Mode = 'LIVE' | 'RECORDED';
 
@@ -198,8 +199,12 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="mb-10 flex flex-col md:flex-row justify-between items-end gap-6">
+    <div className="max-w-7xl mx-auto px-6 py-12 space-y-12">
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row justify-between items-end gap-6"
+      >
         <div>
           <h1 className="text-4xl font-black text-white mb-2 tracking-tight uppercase">Adaptive <span className="text-blue-500">Cloak</span></h1>
           <p className="text-slate-400 font-medium text-sm">Real-time object occlusion and privacy masking for professional broadcasts.</p>
@@ -210,7 +215,32 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
             <span className="text-[10px] font-black uppercase text-white tracking-widest">{isActive ? 'REC' : 'STANDBY'}</span>
           </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Steps Section */}
+      {!isActive && (
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-8 py-12 border-y border-white/5">
+          {[
+            { step: "01", title: "Initialize", desc: "Start live feed or import a video clip" },
+            { step: "02", title: "Select", desc: "Draw a box over the object to hide" },
+            { step: "03", title: "Deploy", desc: "AI synthesizes the background in real-time" },
+            { step: "04", title: "Broadcast", desc: "Stream or record with the cloak active" }
+          ].map((s, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="space-y-3"
+            >
+              <span className="text-3xl font-black text-blue-500/20">{s.step}</span>
+              <h4 className="text-white font-bold uppercase tracking-widest text-sm">{s.title}</h4>
+              <p className="text-slate-500 text-xs leading-relaxed">{s.desc}</p>
+            </motion.div>
+          ))}
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="space-y-6">
@@ -296,12 +326,19 @@ const VideoEditing: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.F
               onMouseUp={() => setIsSelecting(false)}
               className="w-full h-full object-cover cursor-crosshair"
             />
-            {isInpainting && (
-              <div className="absolute inset-0 glass flex flex-col items-center justify-center">
-                <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-white font-black tracking-[0.3em] text-[10px] uppercase animate-pulse">Neural Rendering</p>
-              </div>
-            )}
+            <AnimatePresence>
+              {isInpainting && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 glass flex flex-col items-center justify-center"
+                >
+                  <div className="w-12 h-12 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                  <p className="text-white font-black tracking-[0.3em] text-[10px] uppercase animate-pulse">Neural Rendering</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
             {!isActive && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-800">
                 <div className="w-20 h-20 glass rounded-full flex items-center justify-center mb-6 border-slate-900">

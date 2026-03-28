@@ -1,132 +1,254 @@
-
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { enhanceDocument } from '../services/geminiService';
+import { applyWatermark } from '../services/imageUtils';
 import { UserTier } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const DocumentEnhancement: React.FC<{ userTier?: UserTier }> = ({ userTier = UserTier.FREE }) => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (processedUrl) {
+      applyWatermark(processedUrl, userTier).then(setDownloadUrl);
+    } else {
+      setDownloadUrl(null);
+    }
+  }, [processedUrl, userTier]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setPreviewUrl(URL.createObjectURL(file));
     setProcessedUrl(null);
+    setError(null);
   };
 
   const processImage = async () => {
     if (!previewUrl) return;
     setIsProcessing(true);
+    setError(null);
     try {
-      // Logic to fetch base64 from blob
       const response = await fetch(previewUrl);
       const blob = await response.blob();
       const reader = new FileReader();
       reader.readAsDataURL(blob);
       reader.onloadend = async () => {
-        const result = await enhanceDocument(reader.result as string);
-        setProcessedUrl(result);
-        setIsProcessing(false);
+        try {
+          const result = await enhanceDocument(reader.result as string);
+          setProcessedUrl(result);
+        } catch (err: any) {
+          setError(err.message || "Failed to process document.");
+        } finally {
+          setIsProcessing(false);
+        }
       };
     } catch (err) {
+      setError("Failed to load image for processing.");
       setIsProcessing(false);
     }
   };
 
-  return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl font-black text-white mb-2 tracking-tight">AI Document Master</h1>
-        <p className="text-slate-400 font-medium">Professional shadow removal and background reconstruction.</p>
-      </div>
+  const removeImage = () => {
+    setPreviewUrl(null);
+    setProcessedUrl(null);
+    setError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-        <div className="space-y-8">
-          <div className="glass p-8 rounded-3xl border-slate-700">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Quality Standard</h3>
-            <div className="space-y-6">
-              <div className="relative rounded-2xl overflow-hidden border border-slate-800">
-                <img src="https://images.unsplash.com/photo-1568667256549-094345857637?w=500&q=80" className="w-full h-40 object-cover grayscale brightness-50 contrast-75" alt="Low quality" />
-                <div className="absolute top-2 left-2 bg-red-500 px-2 py-0.5 rounded text-[8px] font-black text-white">RAW SCAN</div>
-              </div>
-              <div className="relative rounded-2xl overflow-hidden border border-blue-500/30 shadow-lg shadow-blue-500/10">
-                <img src="https://images.unsplash.com/photo-1586769852836-bc069f19e1b6?w=500&q=80" className="w-full h-40 object-cover brightness-110 contrast-125" alt="High quality" />
-                <div className="absolute top-2 left-2 bg-blue-600 px-2 py-0.5 rounded text-[8px] font-black text-white">VISION-X PRO</div>
+  return (
+    <div className="space-y-16 animate-fade-in pb-20">
+      <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center gap-3 mb-4">
+             <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-widest border border-blue-500/20">Archival Tool</span>
+             {userTier === UserTier.PREMIUM && <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest border border-amber-500/20">Pro Mode</span>}
+          </div>
+          <h1 className="text-5xl font-black text-white mb-4 tracking-tighter uppercase">Document Master</h1>
+          <p className="text-slate-400 font-medium text-lg max-w-2xl leading-relaxed">
+            Eliminate shadows, ink bleeds, and obstructions from camera scans. 
+            The professional choice for OCR preprocessing and digital restoration.
+          </p>
+        </motion.div>
+        {!previewUrl && (
+          <motion.button 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => fileInputRef.current?.click()}
+            className="px-10 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl uppercase tracking-widest text-xs"
+          >
+            Upload Document
+          </motion.button>
+        )}
+      </section>
+
+      <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+
+      {/* Steps Section */}
+      {!previewUrl && (
+        <section className="grid grid-cols-1 md:grid-cols-4 gap-8 py-12 border-y border-white/5">
+          {[
+            { step: "01", title: "Upload", desc: "Select a scanned or photographed document" },
+            { step: "02", title: "Analyze", desc: "AI detects shadows, fingers, and noise" },
+            { step: "03", title: "Enhance", desc: "Cleaning visual disturbances" },
+            { step: "04", title: "Result", desc: "Preview and download output" }
+          ].map((s, i) => (
+            <motion.div 
+              key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="space-y-3"
+            >
+              <span className="text-3xl font-black text-blue-500/20">{s.step}</span>
+              <h4 className="text-white font-bold uppercase tracking-widest text-sm">{s.title}</h4>
+              <p className="text-slate-500 text-xs leading-relaxed">{s.desc}</p>
+            </motion.div>
+          ))}
+        </section>
+      )}
+
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 bg-red-500/10 border border-red-500/20 rounded-3xl text-red-400 font-bold flex items-center gap-4"
+        >
+          <i className="fa-solid fa-triangle-exclamation text-xl"></i>
+          <div>
+            <p className="text-sm">Processing Error</p>
+            <p className="text-xs opacity-70">{error}</p>
+          </div>
+        </motion.div>
+      )}
+
+      {!previewUrl ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+          <motion.div 
+            whileHover={{ borderColor: 'rgba(59, 130, 246, 0.5)' }}
+            onClick={() => fileInputRef.current?.click()}
+            className="lg:col-span-2 group glass h-[500px] rounded-[3.5rem] border-2 border-dashed border-white/5 flex flex-col items-center justify-center p-12 cursor-pointer transition-all bg-slate-900/20"
+          >
+            <div className="w-24 h-24 bg-slate-950 rounded-3xl flex items-center justify-center text-slate-700 text-4xl mb-8 group-hover:scale-110 group-hover:text-blue-500 transition-all border border-white/5 shadow-2xl">
+              <i className="fa-solid fa-file-invoice"></i>
+            </div>
+            <h3 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Drop Document Here</h3>
+            <p className="text-slate-500 font-medium mb-8 text-center max-w-sm">Supports PNG, JPG, or high-res mobile camera snapshots.</p>
+          </motion.div>
+          
+          <div className="glass rounded-[3.5rem] p-10 border-white/5 flex flex-col justify-center">
+            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">Restoration Sample</h4>
+            <div className="relative aspect-[3/4] rounded-3xl overflow-hidden border border-white/10 group mb-6">
+               <img 
+                 src="https://images.unsplash.com/photo-1586769852836-bc069f19e1b6?auto=format&fit=crop&q=80&w=400" 
+                 className="w-full h-full object-cover grayscale opacity-50" 
+                 alt="Example"
+                 referrerPolicy="no-referrer"
+               />
+               <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="px-4 py-2 glass rounded-full text-[9px] font-black text-white uppercase tracking-widest">Before / After</span>
+               </div>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Our AI removes complex shadows and restores text legibility in seconds.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-4">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Original Input</span>
+              <div className="flex gap-4">
+                <button onClick={() => fileInputRef.current?.click()} className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest">Change</button>
+                <button onClick={removeImage} className="text-[10px] font-black text-red-500 hover:text-red-400 uppercase tracking-widest">Remove</button>
               </div>
             </div>
-            <p className="text-[10px] text-slate-500 mt-6 leading-relaxed">Our model uses edge-detection to separate shadows from ink, restoring the document's original background color.</p>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass p-5 rounded-[3rem] border-white/5 bg-slate-900/40"
+            >
+              <img src={previewUrl} className="w-full rounded-[2rem] shadow-2xl" alt="Preview" />
+            </motion.div>
           </div>
 
-          <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 p-8 rounded-3xl border border-yellow-500/20">
-            <h4 className="text-yellow-500 font-black text-sm mb-2 uppercase tracking-widest">Go Professional</h4>
-            <p className="text-slate-400 text-xs mb-6">Upgrade to remove watermarks and unlock high-resolution export for printing.</p>
-            <button className="w-full py-3 bg-yellow-500 text-black font-black rounded-xl text-xs hover:scale-105 transition-all">Upgrade Now</button>
-          </div>
-        </div>
-
-        <div className="lg:col-span-2">
-          <div className="glass min-h-[500px] rounded-[3rem] border-2 border-dashed border-slate-800 flex flex-col items-center justify-center p-8 relative overflow-hidden">
-            {isProcessing && (
-              <div className="absolute inset-0 z-50 glass flex flex-col items-center justify-center">
-                <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
-                <p className="text-white font-black tracking-widest uppercase animate-pulse">Filtering Artifacts...</p>
-              </div>
-            )}
-
-            {!previewUrl ? (
-              <div className="text-center">
-                <div className="w-24 h-24 glass rounded-full flex items-center justify-center text-slate-700 text-4xl mx-auto mb-8">
-                  <i className="fa-solid fa-file-invoice"></i>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center px-4">
+              <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Refined Result</span>
+              {processedUrl && (
+                <div className="flex gap-4">
+                  <a href={downloadUrl || processedUrl} download="VISIONX_RESTORED.png" className="text-[10px] font-black text-emerald-500 hover:text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                    <i className="fa-solid fa-download"></i> Download
+                  </a>
                 </div>
-                <h3 className="text-2xl font-black text-white mb-2">Refine Your Scan</h3>
-                <p className="text-slate-500 mb-8 max-w-sm">Upload a photo of any document with shadows or fingers.</p>
-                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                <button onClick={() => fileInputRef.current?.click()} className="px-12 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:scale-105 transition-all uppercase tracking-widest text-xs">
-                  Select Document
-                </button>
-              </div>
-            ) : (
-              <div className="w-full space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Raw Capture</span>
-                    <img src={previewUrl} className="w-full rounded-2xl border border-slate-800 shadow-2xl" alt="Preview" />
-                  </div>
-                  <div className="space-y-3">
-                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">AI Refined</span>
-                    <div className="relative">
-                      {processedUrl ? (
-                        <>
-                          <img src={processedUrl} className="w-full rounded-2xl border border-blue-500/30 shadow-2xl shadow-blue-500/10" alt="Processed" />
-                          {userTier === UserTier.FREE && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                              <div className="rotate-[-20deg] border-4 border-white/50 px-6 py-2 text-4xl font-black text-white/50">VISION-X</div>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="aspect-[3/4] glass rounded-2xl flex items-center justify-center text-slate-800 text-5xl">
-                          <i className="fa-solid fa-wand-magic-sparkles"></i>
-                        </div>
-                      )}
+              )}
+            </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="glass p-5 rounded-[3rem] border-blue-500/20 bg-blue-500/5 relative min-h-[500px] flex items-center justify-center"
+            >
+              <AnimatePresence>
+                {isProcessing && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-10 glass rounded-[3rem] flex flex-col items-center justify-center"
+                  >
+                    <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-6"></div>
+                    <p className="text-white font-black tracking-[0.3em] uppercase text-xs animate-pulse">Neural Reconstruction...</p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              {processedUrl ? (
+                <div className="relative group">
+                  <img src={processedUrl} className="w-full rounded-[2rem] shadow-2xl" alt="Processed" />
+                  {userTier === UserTier.FREE && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none overflow-hidden">
+                       <span className="text-5xl font-black text-white/10 rotate-[-45deg] select-none tracking-[0.5em] whitespace-nowrap mb-10">VISION_X OUTPUT</span>
+                       <div className="absolute bottom-10 flex items-center gap-2 opacity-20">
+                          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-black text-xs">V</div>
+                          <span className="text-sm font-black text-white tracking-tighter">VISION-X</span>
+                       </div>
                     </div>
-                  </div>
-                </div>
-                <div className="flex justify-center gap-4">
-                  {!processedUrl ? (
-                    <button onClick={processImage} className="px-12 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:scale-105 transition-all">Enhance Document</button>
-                  ) : (
-                    <a href={processedUrl} download="enhanced_doc.png" className="px-12 py-4 bg-green-600 text-white font-black rounded-2xl shadow-xl hover:scale-105 transition-all">Download Result</a>
                   )}
-                  <button onClick={() => setPreviewUrl(null)} className="px-10 py-4 glass text-white font-bold rounded-2xl border-slate-700">Reset</button>
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center p-12">
+                   {!isProcessing && (
+                     <>
+                        <div className="w-20 h-20 bg-blue-600/10 rounded-full flex items-center justify-center text-blue-500 text-3xl mx-auto mb-8 border border-blue-500/20">
+                           <i className="fa-solid fa-wand-magic-sparkles"></i>
+                        </div>
+                        <button 
+                          onClick={processImage}
+                          className="px-12 py-5 bg-blue-600 text-white font-black rounded-2xl shadow-xl hover:scale-105 transition-all text-xs uppercase tracking-widest"
+                        >
+                          Execute Refinement
+                        </button>
+                        <p className="mt-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">VLM Inference Engine v2</p>
+                     </>
+                   )}
+                </div>
+              )}
+            </motion.div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
